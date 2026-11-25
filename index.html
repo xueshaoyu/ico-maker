@@ -1,0 +1,1041 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ICO 制作工具</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231f6feb'/%3E%3Cpath fill='%23fff' d='M32 16 L48 32 L32 48 L16 32 Z'/%3E%3Cpath fill='%2379b8ff' d='M32 24 L40 32 L32 40 L24 32 Z'/%3E%3C/svg%3E">
+  <style>
+    :root {
+      --bg: #f4f6f8;
+      --card: #ffffff;
+      --subtle: #eef1f5;
+      --text: #1c2128;
+      --muted: #5c6670;
+      --faint: #8a939c;
+      --border: #d5dce3;
+      --focus: #1f6feb;
+      --accent: #1f6feb;
+      --accent-hover: #1a61d0;
+      --on-accent: #ffffff;
+      --success: #1a7f37;
+      --success-bg: #dafbe1;
+      --danger: #cf222e;
+      --danger-bg: #ffebe9;
+      --shadow: 0 1px 2px rgba(16,24,40,.06), 0 8px 24px rgba(16,24,40,.04);
+      --radius: 12px;
+      --mono: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, monospace;
+      color-scheme: light;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0f141a;
+        --card: #171e26;
+        --subtle: #12181f;
+        --text: #e7ecf1;
+        --muted: #9aa4ae;
+        --faint: #7a848e;
+        --border: #2c3640;
+        --focus: #58a6ff;
+        --accent: #388bfd;
+        --accent-hover: #4c9aff;
+        --on-accent: #081018;
+        --success: #3fb950;
+        --success-bg: #12261a;
+        --danger: #f85149;
+        --danger-bg: #2a1214;
+        --shadow: 0 1px 2px rgba(0,0,0,.35);
+        color-scheme: dark;
+      }
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei UI", "Noto Sans SC", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.55;
+      padding: 32px 20px 120px;
+    }
+    .wrap { max-width: 920px; margin: 0 auto; }
+    header { margin-bottom: 28px; }
+    h1 { font-size: 28px; font-weight: 650; letter-spacing: -0.02em; margin: 0 0 8px; }
+    .lead { margin: 0; color: var(--muted); font-size: 15px; max-width: 46em; }
+    section {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 22px 24px 24px;
+      margin-bottom: 16px;
+    }
+    h2 { font-size: 17px; font-weight: 650; margin: 0 0 12px; }
+    p { margin: 0 0 12px; color: var(--muted); font-size: 14px; }
+    p:last-child { margin-bottom: 0; }
+    ol.steps { margin: 0; padding-left: 1.2em; color: var(--muted); font-size: 14px; }
+    ol.steps li { margin: 0 0 8px; }
+    ol.steps li:last-child { margin-bottom: 0; }
+    ol.steps strong { color: var(--text); font-weight: 600; }
+    .row { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
+    .grow { flex: 1 1 160px; min-width: 0; }
+    label.field { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--muted); }
+    input[type="text"], input[type="number"] {
+      height: 36px; padding: 0 10px; border: 1px solid var(--border); border-radius: 8px;
+      background: var(--card); color: var(--text); font: inherit; width: 100%;
+    }
+    input[type="text"]:focus, input[type="number"]:focus, input[type="color"]:focus {
+      outline: 2px solid var(--focus); outline-offset: 1px;
+    }
+    input[type="color"] {
+      width: 48px; height: 36px; padding: 0; border: 1px solid var(--border);
+      border-radius: 8px; background: transparent; cursor: pointer;
+    }
+    button {
+      font: inherit; height: 36px; padding: 0 14px; border-radius: 8px;
+      border: 1px solid var(--border); background: var(--subtle); color: var(--text);
+      cursor: pointer; font-weight: 600; font-size: 14px;
+    }
+    button:hover:not(:disabled) { filter: brightness(0.98); }
+    button:disabled { opacity: .45; cursor: not-allowed; }
+    button.primary {
+      background: var(--accent); border-color: transparent; color: var(--on-accent);
+    }
+    button.primary:hover:not(:disabled) { background: var(--accent-hover); filter: none; }
+    .drop {
+      padding: 28px 16px; text-align: center; border: 1px dashed var(--border);
+      border-radius: 10px; background: var(--subtle); color: var(--muted); margin-bottom: 12px;
+    }
+    .drop.over { border-color: var(--focus); border-style: solid; color: var(--text); }
+    .toggles { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 14px; }
+    .chip {
+      display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 10px;
+      border: 1px solid var(--border); border-radius: 999px; background: var(--subtle);
+      font-size: 13px; cursor: pointer; user-select: none;
+    }
+    .chip input { accent-color: var(--accent); }
+    .chip.on { border-color: var(--focus); background: color-mix(in srgb, var(--accent) 12%, var(--card)); }
+    .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+    .seg label {
+      padding: 7px 12px; font-size: 13px; cursor: pointer; margin: 0; background: var(--subtle); color: var(--muted);
+    }
+    .seg input { position: absolute; opacity: 0; pointer-events: none; }
+    .seg label:has(input:checked) { background: var(--accent); color: var(--on-accent); font-weight: 600; }
+    .err { color: var(--danger); font-size: 14px; margin: 8px 0 0; }
+    .hint { font-size: 13px; color: var(--faint); margin-top: 8px; }
+    .preview-frame {
+      width: 100%; max-width: 720px; border: 1px solid var(--border); border-radius: 10px;
+      overflow: hidden; line-height: 0; margin-top: 14px;
+    }
+    .preview-frame.picking { border-color: var(--focus); cursor: crosshair; }
+    .preview-frame canvas { width: 100%; height: auto; display: block; }
+    .thumbs { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-end; }
+    .thumb { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+    .thumb .cap { font-size: 12px; color: var(--muted); }
+    .thumb .box {
+      border: 1px solid var(--border); border-radius: 8px; overflow: hidden; line-height: 0;
+    }
+    .thumb canvas { display: block; width: 100%; height: 100%; }
+    .props { display: grid; grid-template-columns: 120px 1fr; gap: 6px 16px; font-size: 14px; margin: 12px 0; }
+    .props dt { color: var(--muted); }
+    .props dd { margin: 0; }
+    .checks { list-style: none; margin: 0 0 16px; padding: 0; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+    .checks li { display: grid; grid-template-columns: 1fr auto; gap: 8px 16px; padding: 10px 12px; border-top: 1px solid var(--border); font-size: 13px; }
+    .checks li:first-child { border-top: 0; }
+    .checks .title { font-weight: 600; }
+    .checks .detail { color: var(--muted); grid-column: 1 / -1; }
+    .badge { font-size: 12px; font-weight: 650; padding: 2px 8px; border-radius: 999px; height: fit-content; }
+    .ok { background: var(--success-bg); color: var(--success); }
+    .bad { background: var(--danger-bg); color: var(--danger); }
+    .note {
+      margin-top: 16px; padding: 12px 14px; border-radius: 10px;
+      background: color-mix(in srgb, var(--accent) 8%, var(--card));
+      color: var(--muted); font-size: 13px; border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border));
+    }
+    .bar {
+      position: fixed; right: 20px; bottom: 20px; display: flex; gap: 10px; align-items: center;
+      background: var(--card); border: 1px solid var(--border); box-shadow: var(--shadow);
+      border-radius: 999px; padding: 8px 8px 8px 16px; z-index: 10;
+    }
+    .bar span { font-size: 13px; color: var(--muted); }
+    .checker-light {
+      background-color: #eef1f5;
+      background-image:
+        linear-gradient(45deg, #fff 25%, transparent 25%),
+        linear-gradient(-45deg, #fff 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #fff 75%),
+        linear-gradient(-45deg, transparent 75%, #fff 75%);
+      background-size: 16px 16px;
+      background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+    }
+    @media (prefers-color-scheme: dark) {
+      .checker-light {
+        background-color: #12181f;
+        background-image:
+          linear-gradient(45deg, #1c252e 25%, transparent 25%),
+          linear-gradient(-45deg, #1c252e 25%, transparent 25%),
+          linear-gradient(45deg, transparent 75%, #1c252e 75%),
+          linear-gradient(-45deg, transparent 75%, #1c252e 75%);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>ICO 制作工具</h1>
+      <p class="lead">把 JPG、PNG 或 WEBP 转成可含多个尺寸的 ICO 图标。可去掉指定背景色，全部在浏览器里完成，无需安装，也不会上传到任何服务器。</p>
+    </header>
+
+    <section>
+      <h2>怎么用</h2>
+      <ol class="steps">
+        <li><strong>上传图片。</strong>选择或拖入 JPG、PNG，浏览器支持时也可用 WEBP。页面已载入一张示例图，可先试一遍再换成你的图。</li>
+        <li><strong>选择尺寸。</strong>勾选要写入同一个 .ico 的边长。默认已选 16、32、48、256，也可添加 1 到 256 的自定义整数尺寸。</li>
+        <li><strong>过滤背景色。</strong>需要去背景时打开开关，用吸管在原图上取色，或用颜色选择器指定，再设容差。匹配像素会变成完全透明，原有透明区域会保留。</li>
+        <li><strong>预览并下载。</strong>在棋盘格上确认各尺寸和透明区域，自检通过后下载 .ico 文件，拿到即可使用。</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>上传图片</h2>
+      <p id="sourceStatus">支持 JPG、PNG，以及浏览器可解码的 WEBP。当前为示例图，可直接换成你的图片。</p>
+      <div id="drop" class="drop">把图片拖到这里，或点下方按钮选择文件</div>
+      <input id="file" type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" hidden>
+      <div class="row">
+        <button type="button" class="primary" id="pickFile">选择图片</button>
+        <button type="button" id="useSample">使用示例图</button>
+      </div>
+      <p id="loadError" class="err" hidden></p>
+      <div id="sourceFrame" class="preview-frame checker-light" hidden>
+        <canvas id="sourceCanvas"></canvas>
+      </div>
+      <div id="sourceHint" class="hint"></div>
+    </section>
+
+    <section>
+      <h2>图标尺寸</h2>
+      <p id="sizeDesc">可多选，会写入同一个 .ico 文件。常见尺寸为 16、24、32、48、64、128、256，也可添加 1 到 256 的自定义正整数。</p>
+      <div id="sizeToggles" class="toggles"></div>
+      <div class="row">
+        <label class="field grow">自定义边长
+          <input id="customSize" type="number" min="1" max="256" placeholder="1-256">
+        </label>
+        <button type="button" id="addSize">添加尺寸</button>
+        <button type="button" id="resetSizes">恢复常用组合</button>
+      </div>
+      <p style="margin-top:16px">图片如何放进正方形图标。</p>
+      <div class="seg" id="fitSeg">
+        <label><input type="radio" name="fit" value="contain" checked> 完整放入</label>
+        <label><input type="radio" name="fit" value="cover"> 居中裁切</label>
+        <label><input type="radio" name="fit" value="stretch"> 拉伸</label>
+      </div>
+    </section>
+
+    <section>
+      <h2>过滤背景色</h2>
+      <p>打开后，与指定颜色在容差内的像素会变成完全透明。容差为 0 到 255，按红绿蓝各通道差值的最大值比较：0 只去掉完全一致的颜色，数值越大，越多相近色会被去掉。PNG 原有的透明通道会保留，再进行过滤。示例图的背景是白色，可先用默认设置试验。</p>
+      <div class="toggles">
+        <label class="chip" id="filterChip"><input type="checkbox" id="filterOn"> 过滤背景色</label>
+      </div>
+      <div class="row">
+        <label class="field">颜色
+          <input id="colorPick" type="color" value="#ffffff" aria-label="背景色">
+        </label>
+        <label class="field grow">色值
+          <input id="colorHex" type="text" value="#ffffff" placeholder="#ffffff">
+        </label>
+        <label class="field grow">容差 0-255
+          <input id="tolerance" type="number" min="0" max="255" value="32" placeholder="32">
+        </label>
+        <button type="button" id="eyedrop">吸管取色</button>
+      </div>
+      <p id="pickHint" class="hint" hidden>请在上方原图预览上点击要去掉的颜色。取色后会自动打开过滤。</p>
+    </section>
+
+    <section>
+      <h2>尺寸预览</h2>
+      <p>棋盘格表示透明。较小尺寸另附放大视图，以便看边缘和透明区域。</p>
+      <div id="previewEmpty" class="hint">请至少选择一个尺寸后再预览。</div>
+      <div id="previewActual" class="thumbs"></div>
+      <div id="previewZoom" class="thumbs" style="margin-top:16px"></div>
+    </section>
+
+    <section>
+      <h2>下载 ICO</h2>
+      <p>下载前会按 ICO 规范做格式自检：文件头、尺寸目录、PNG 或 DIB 编码、AND 掩码长度，以及各块数据不重叠。自检通过后才可下载。</p>
+      <dl class="props" id="props"></dl>
+      <ul class="checks" id="checks" hidden></ul>
+      <button type="button" class="primary" id="download" disabled>下载 ICO</button>
+      <div class="note">图片只在你的浏览器里处理，不会上传到任何服务器。缩放时使用高质量逐级下采。放入 Windows 后，若资源管理器仍显示旧图标，多半是缓存，换个文件夹再看即可。</div>
+    </section>
+  </div>
+
+  <div class="bar">
+    <span id="barStatus">等待生成</span>
+    <button type="button" class="primary" id="downloadBar" disabled>下载 ICO</button>
+  </div>
+
+<script>
+(function () {
+  "use strict";
+
+  const PRESET_SIZES = [16, 24, 32, 48, 64, 128, 256];
+  const DEFAULT_SIZES = [16, 32, 48, 256];
+  const PNG_SIG = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+
+  let source = null;
+  let fileName = "示例图标";
+  let isSample = true;
+  let selected = DEFAULT_SIZES.slice();
+  let fit = "contain";
+  let filterOn = false;
+  let filterColor = "#ffffff";
+  let tolerance = "32";
+  let picking = false;
+  let objectUrl = null;
+  let hoverHex = "";
+  let icoResult = null;
+
+  const $ = (id) => document.getElementById(id);
+  const fileInput = $("file");
+  const drop = $("drop");
+  const sourceCanvas = $("sourceCanvas");
+  const sourceFrame = $("sourceFrame");
+
+  function clamp(n, min, max) {
+    return Math.min(max, Math.max(min, n));
+  }
+
+  function parseHex(hex) {
+    let h = String(hex || "").trim();
+    if (h.charAt(0) === "#") h = h.slice(1);
+    if (/^[0-9a-fA-F]{3}$/.test(h)) {
+      h = h.charAt(0) + h.charAt(0) + h.charAt(1) + h.charAt(1) + h.charAt(2) + h.charAt(2);
+    }
+    if (!/^[0-9a-fA-F]{6}$/.test(h)) return null;
+    return {
+      r: parseInt(h.slice(0, 2), 16),
+      g: parseInt(h.slice(2, 4), 16),
+      b: parseInt(h.slice(4, 6), 16),
+    };
+  }
+
+  function toHex(r, g, b) {
+    const p = (n) => clamp(Math.round(n), 0, 255).toString(16).padStart(2, "0");
+    return "#" + p(r) + p(g) + p(b);
+  }
+
+  function safeName(name) {
+    const t = String(name || "").replace(/[\\/:*?"<>|]+/g, "").trim();
+    return t || "icon";
+  }
+
+  function isSupportedFile(file) {
+    const t = (file.type || "").toLowerCase();
+    if (t === "image/jpeg" || t === "image/jpg" || t === "image/png" || t === "image/webp") return true;
+    const n = (file.name || "").toLowerCase();
+    return n.endsWith(".jpg") || n.endsWith(".jpeg") || n.endsWith(".png") || n.endsWith(".webp");
+  }
+
+  function makeSampleDataUrl() {
+    const s = 256;
+    const c = document.createElement("canvas");
+    c.width = s;
+    c.height = s;
+    const ctx = c.getContext("2d");
+    if (!ctx) return "";
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, s, s);
+    const x = 40, y = 40, w = 176, h = 176, r = 36;
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+    ctx.fillStyle = "#1f6feb";
+    ctx.fill();
+    ctx.fillStyle = "#ffffff";
+    ctx.beginPath();
+    ctx.moveTo(128, 78);
+    ctx.lineTo(178, 128);
+    ctx.lineTo(128, 178);
+    ctx.lineTo(78, 128);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = "#79b8ff";
+    ctx.beginPath();
+    ctx.moveTo(128, 100);
+    ctx.lineTo(156, 128);
+    ctx.lineTo(128, 156);
+    ctx.lineTo(100, 128);
+    ctx.closePath();
+    ctx.fill();
+    return c.toDataURL("image/png");
+  }
+
+  function sourceToSquare(img, size, fitMode) {
+    const empty = new ImageData(size, size);
+    const sw = img.naturalWidth;
+    const sh = img.naturalHeight;
+    if (sw < 1 || sh < 1) return empty;
+    let sx = 0, sy = 0, sww = sw, shh = sh, dx = 0, dy = 0, dw = size, dh = size;
+    if (fitMode === "contain") {
+      const scale = Math.min(size / sw, size / sh);
+      dw = Math.max(1, Math.round(sw * scale));
+      dh = Math.max(1, Math.round(sh * scale));
+      dx = Math.floor((size - dw) / 2);
+      dy = Math.floor((size - dh) / 2);
+    } else if (fitMode === "cover") {
+      const side = Math.min(sw, sh);
+      sx = Math.floor((sw - side) / 2);
+      sy = Math.floor((sh - side) / 2);
+      sww = side;
+      shh = side;
+    }
+    const srcCanvas = document.createElement("canvas");
+    srcCanvas.width = sww;
+    srcCanvas.height = shh;
+    const sctx = srcCanvas.getContext("2d");
+    if (!sctx) return empty;
+    sctx.imageSmoothingEnabled = true;
+    sctx.imageSmoothingQuality = "high";
+    sctx.drawImage(img, sx, sy, sww, shh, 0, 0, sww, shh);
+    let cur = srcCanvas, cw = sww, ch = shh;
+    while (cw / 2 >= dw && ch / 2 >= dh) {
+      const nw = Math.max(dw, Math.floor(cw / 2));
+      const nh = Math.max(dh, Math.floor(ch / 2));
+      const next = document.createElement("canvas");
+      next.width = nw;
+      next.height = nh;
+      const nctx = next.getContext("2d");
+      if (!nctx) break;
+      nctx.imageSmoothingEnabled = true;
+      nctx.imageSmoothingQuality = "high";
+      nctx.drawImage(cur, 0, 0, nw, nh);
+      cur = next;
+      cw = nw;
+      ch = nh;
+    }
+    const out = document.createElement("canvas");
+    out.width = size;
+    out.height = size;
+    const octx = out.getContext("2d");
+    if (!octx) return empty;
+    octx.imageSmoothingEnabled = true;
+    octx.imageSmoothingQuality = "high";
+    octx.clearRect(0, 0, size, size);
+    octx.drawImage(cur, 0, 0, cur.width, cur.height, dx, dy, dw, dh);
+    return octx.getImageData(0, 0, size, size);
+  }
+
+  function applyFilter(data, color, tol) {
+    const copy = new ImageData(new Uint8ClampedArray(data.data), data.width, data.height);
+    const px = copy.data;
+    for (let i = 0; i < px.length; i += 4) {
+      if (px[i + 3] === 0) continue;
+      const d = Math.max(
+        Math.abs(px[i] - color.r),
+        Math.abs(px[i + 1] - color.g),
+        Math.abs(px[i + 2] - color.b)
+      );
+      if (d <= tol) {
+        px[i] = 0;
+        px[i + 1] = 0;
+        px[i + 2] = 0;
+        px[i + 3] = 0;
+      }
+    }
+    return copy;
+  }
+
+  function encodeDib32(width, height, rgba) {
+    const xorSize = width * 4 * height;
+    const andStride = ((width + 31) >> 5) << 2;
+    const andSize = andStride * height;
+    const out = new Uint8Array(40 + xorSize + andSize);
+    const dv = new DataView(out.buffer);
+    dv.setUint32(0, 40, true);
+    dv.setInt32(4, width, true);
+    dv.setInt32(8, height * 2, true);
+    dv.setUint16(12, 1, true);
+    dv.setUint16(14, 32, true);
+    dv.setUint32(16, 0, true);
+    dv.setUint32(20, xorSize + andSize, true);
+    let p = 40;
+    for (let y = height - 1; y >= 0; y--) {
+      for (let x = 0; x < width; x++) {
+        const i = (y * width + x) * 4;
+        out[p++] = rgba[i + 2];
+        out[p++] = rgba[i + 1];
+        out[p++] = rgba[i];
+        out[p++] = rgba[i + 3];
+      }
+    }
+    for (let y = height - 1; y >= 0; y--) {
+      for (let x = 0; x < width; x++) {
+        const a = rgba[(y * width + x) * 4 + 3];
+        if (a === 0) out[p + (x >> 3)] |= 0x80 >> (x & 7);
+      }
+      p += andStride;
+    }
+    return out;
+  }
+
+  function imageDataToPng(imageData) {
+    const c = document.createElement("canvas");
+    c.width = imageData.width;
+    c.height = imageData.height;
+    const ctx = c.getContext("2d");
+    if (!ctx) return null;
+    ctx.putImageData(imageData, 0, 0);
+    const url = c.toDataURL("image/png");
+    const comma = url.indexOf(",");
+    if (comma < 0) return null;
+    const raw = atob(url.slice(comma + 1));
+    const out = new Uint8Array(raw.length);
+    for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+    return out;
+  }
+
+  function buildIco(images) {
+    const count = images.length;
+    const dirSize = 6 + 16 * count;
+    let offset = dirSize;
+    const offsets = [];
+    let total = dirSize;
+    for (let i = 0; i < count; i++) {
+      offsets.push(offset);
+      offset += images[i].data.length;
+      total += images[i].data.length;
+    }
+    const out = new Uint8Array(total);
+    const dv = new DataView(out.buffer);
+    dv.setUint16(0, 0, true);
+    dv.setUint16(2, 1, true);
+    dv.setUint16(4, count, true);
+    for (let i = 0; i < count; i++) {
+      const o = 6 + i * 16;
+      const im = images[i];
+      out[o] = im.width >= 256 ? 0 : im.width;
+      out[o + 1] = im.height >= 256 ? 0 : im.height;
+      out[o + 2] = 0;
+      out[o + 3] = 0;
+      dv.setUint16(o + 4, 1, true);
+      dv.setUint16(o + 6, 32, true);
+      dv.setUint32(o + 8, im.data.length, true);
+      dv.setUint32(o + 12, offsets[i], true);
+      out.set(im.data, offsets[i]);
+    }
+    return out;
+  }
+
+  function isPngAt(bytes, offset) {
+    if (offset + 8 > bytes.length) return false;
+    for (let i = 0; i < 8; i++) {
+      if (bytes[offset + i] !== PNG_SIG[i]) return false;
+    }
+    return true;
+  }
+
+  function validateIco(bytes, expectedSizes) {
+    const items = [];
+    if (bytes.length < 6) {
+      items.push({ title: "文件头", ok: false, detail: "短于 6 字节，不是有效的 ICO 头" });
+      return items;
+    }
+    const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    const reserved = dv.getUint16(0, true);
+    const type = dv.getUint16(2, true);
+    const count = dv.getUint16(4, true);
+    if (reserved === 0 && type === 1 && count === expectedSizes.length && count > 0) {
+      items.push({ title: "文件头", ok: true, detail: "保留字段为 0，类型为 1（ICO），共 " + count + " 个尺寸" });
+    } else {
+      items.push({ title: "文件头", ok: false, detail: "保留字段=" + reserved + "，类型=" + type + "，数量=" + count + "，期望数量=" + expectedSizes.length });
+    }
+    const dirEnd = 6 + 16 * count;
+    if (bytes.length < dirEnd) {
+      items.push({ title: "目录完整性", ok: false, detail: "文件在读完目录前就结束了" });
+      return items;
+    }
+    const ranges = [];
+    for (let i = 0; i < count; i++) {
+      const o = 6 + i * 16;
+      let w = bytes[o];
+      let h = bytes[o + 1];
+      if (w === 0) w = 256;
+      if (h === 0) h = 256;
+      const reservedEntry = bytes[o + 3];
+      const nbytes = dv.getUint32(o + 8, true);
+      const offset = dv.getUint32(o + 12, true);
+      const exp = expectedSizes[i];
+      const label = w + "×" + h;
+      if (w !== exp || h !== exp || w < 1 || w > 256 || reservedEntry !== 0) {
+        items.push({ title: label + " 目录", ok: false, detail: "记录为 " + w + "×" + h + "，期望 " + exp + "×" + exp });
+        continue;
+      }
+      if (offset < dirEnd || offset + nbytes > bytes.length) {
+        items.push({ title: label + " 数据范围", ok: false, detail: "偏移 " + offset + "、长度 " + nbytes + " 超出文件或落在目录内" });
+        continue;
+      }
+      ranges.push({ start: offset, end: offset + nbytes });
+      if (w === 256) {
+        const png = isPngAt(bytes, offset);
+        let ihdrOk = false;
+        if (png && offset + 24 <= bytes.length) {
+          const iw = dv.getUint32(offset + 16, false);
+          const ih = dv.getUint32(offset + 20, false);
+          ihdrOk = iw === 256 && ih === 256;
+        }
+        items.push({
+          title: "256×256 编码",
+          ok: png && ihdrOk,
+          detail: png && ihdrOk ? "已嵌入完整 PNG，IHDR 为 256×256" : "应为嵌入 PNG，但签名或尺寸不符",
+        });
+      } else {
+        const biSize = dv.getUint32(offset, true);
+        const biWidth = dv.getInt32(offset + 4, true);
+        const biHeight = dv.getInt32(offset + 8, true);
+        const biPlanes = dv.getUint16(offset + 12, true);
+        const biBitCount = dv.getUint16(offset + 14, true);
+        const andStride = ((w + 31) >> 5) << 2;
+        const expectLen = 40 + w * 4 * h + andStride * h;
+        const ok = biSize === 40 && biWidth === w && biHeight === h * 2 && biPlanes === 1 && biBitCount === 32 && nbytes === expectLen;
+        items.push({
+          title: label + " 编码",
+          ok: ok,
+          detail: ok
+            ? "32 位 BMP/DIB，含 AND 掩码"
+            : "DIB 头或长度不符合 32 位 ICO（头=" + biSize + "，宽=" + biWidth + "，高=" + biHeight + "，位深=" + biBitCount + "，长度=" + nbytes + "，期望=" + expectLen + "）",
+        });
+      }
+    }
+    const sorted = ranges.slice().sort((a, b) => a.start - b.start);
+    let overlap = false;
+    for (let i = 1; i < sorted.length; i++) {
+      if (sorted[i].start < sorted[i - 1].end) overlap = true;
+    }
+    if (sorted.length > 0) {
+      const last = sorted[sorted.length - 1];
+      const lengthOk = !overlap && last.end === bytes.length;
+      items.push({
+        title: "文件结构",
+        ok: lengthOk,
+        detail: lengthOk
+          ? "各尺寸数据互不覆盖，共 " + bytes.length + " 字节，与目录一致"
+          : overlap
+            ? "各尺寸图像数据有重叠"
+            : "实际长度 " + bytes.length + "，数据结束于 " + last.end,
+      });
+    }
+    return items;
+  }
+
+  function setLoadError(msg) {
+    const el = $("loadError");
+    if (!msg) {
+      el.hidden = true;
+      el.textContent = "";
+    } else {
+      el.hidden = false;
+      el.textContent = msg;
+    }
+  }
+
+  function loadImage(img, name, sample) {
+    source = img;
+    fileName = name;
+    isSample = sample;
+    setLoadError("");
+    picking = false;
+    updatePickingUi();
+    $("sourceStatus").textContent = isSample
+      ? "支持 JPG、PNG，以及浏览器可解码的 WEBP。当前为示例图，可直接换成你的图片。"
+      : "支持 JPG、PNG，以及浏览器可解码的 WEBP。当前图片：" + fileName + "。";
+    drawSource();
+    refresh();
+  }
+
+  function loadSample() {
+    if (objectUrl) {
+      URL.revokeObjectURL(objectUrl);
+      objectUrl = null;
+    }
+    const img = new Image();
+    img.onload = function () { loadImage(img, "示例图标", true); };
+    img.src = makeSampleDataUrl();
+  }
+
+  function loadFromFile(file) {
+    if (!isSupportedFile(file)) {
+      setLoadError("请选择 JPG、PNG 或 WEBP 图片。");
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = function () {
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+      objectUrl = url;
+      const base = file.name.replace(/\.[^.]+$/, "");
+      loadImage(img, base || "icon", false);
+    };
+    img.onerror = function () {
+      URL.revokeObjectURL(url);
+      setLoadError("无法读取这张图片。若是 WEBP，可能是当前浏览器不支持。");
+    };
+    img.src = url;
+  }
+
+  function toggleSize(size, on) {
+    if (on) {
+      if (selected.indexOf(size) < 0) selected = selected.concat(size).sort(function (a, b) { return a - b; });
+    } else {
+      selected = selected.filter(function (s) { return s !== size; });
+    }
+    renderSizeToggles();
+    refresh();
+  }
+
+  function addCustomSize() {
+    const n = parseInt($("customSize").value, 10);
+    if (!Number.isInteger(n) || n < 1 || n > 256) {
+      setLoadError("自定义尺寸须是 1 到 256 的整数。");
+      return;
+    }
+    setLoadError("");
+    toggleSize(n, true);
+    $("customSize").value = "";
+  }
+
+  function buildFrames() {
+    if (!source || selected.length === 0) return [];
+    const color = parseHex(filterColor) || { r: 255, g: 255, b: 255 };
+    const parsedTol = parseInt(tolerance, 10);
+    const tol = clamp(Number.isFinite(parsedTol) ? parsedTol : 0, 0, 255);
+    return selected.slice().sort(function (a, b) { return a - b; }).map(function (size) {
+      let data = sourceToSquare(source, size, fit);
+      if (filterOn) data = applyFilter(data, color, tol);
+      return { size: size, imageData: data };
+    });
+  }
+
+  function buildIcoResult(frames) {
+    if (frames.length === 0) return null;
+    const images = [];
+    for (let i = 0; i < frames.length; i++) {
+      const f = frames[i];
+      if (f.size === 256) {
+        const png = imageDataToPng(f.imageData);
+        if (!png) return null;
+        images.push({ width: 256, height: 256, data: png });
+      } else {
+        images.push({ width: f.size, height: f.size, data: encodeDib32(f.size, f.size, f.imageData.data) });
+      }
+    }
+    const bytes = buildIco(images);
+    const checks = validateIco(bytes, frames.map(function (f) { return f.size; }));
+    return { bytes: bytes, checks: checks, allOk: checks.every(function (c) { return c.ok; }) };
+  }
+
+  function downloadIco() {
+    if (!icoResult || !icoResult.allOk) return;
+    const raw = icoResult.bytes;
+    const copy = new Uint8Array(raw.byteLength);
+    copy.set(raw);
+    const blob = new Blob([copy.buffer], { type: "image/x-icon" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = safeName(fileName) + ".ico";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  function drawSource() {
+    if (!source) {
+      sourceFrame.hidden = true;
+      $("sourceHint").textContent = "";
+      return;
+    }
+    sourceFrame.hidden = false;
+    sourceFrame.classList.toggle("picking", picking);
+    const sw = source.naturalWidth;
+    const sh = source.naturalHeight;
+    const scale = Math.min(1, 720 / sw, 360 / sh);
+    const dw = Math.max(1, Math.round(sw * scale));
+    const dh = Math.max(1, Math.round(sh * scale));
+    sourceCanvas.width = dw;
+    sourceCanvas.height = dh;
+    const ctx = sourceCanvas.getContext("2d");
+    if (!ctx) return;
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    ctx.clearRect(0, 0, dw, dh);
+    ctx.drawImage(source, 0, 0, dw, dh);
+    updateSourceHint();
+  }
+
+  function updateSourceHint() {
+    const el = $("sourceHint");
+    if (!source) { el.textContent = ""; return; }
+    if (picking) el.textContent = hoverHex ? ("点击取色：" + hoverHex) : "在图上点击取色";
+    else el.textContent = hoverHex ? ("光标处：" + hoverHex) : (source.naturalWidth + "×" + source.naturalHeight);
+  }
+
+  function readPixel(e) {
+    if (!source) return null;
+    const canvas = sourceCanvas;
+    const rect = canvas.getBoundingClientRect();
+    if (rect.width < 1 || rect.height < 1) return null;
+    const x = Math.floor(((e.clientX - rect.left) / rect.width) * canvas.width);
+    const y = Math.floor(((e.clientY - rect.top) / rect.height) * canvas.height);
+    if (x < 0 || y < 0 || x >= canvas.width || y >= canvas.height) return null;
+    const srcX = Math.min(source.naturalWidth - 1, Math.max(0, Math.floor((x / canvas.width) * source.naturalWidth)));
+    const srcY = Math.min(source.naturalHeight - 1, Math.max(0, Math.floor((y / canvas.height) * source.naturalHeight)));
+    const probe = document.createElement("canvas");
+    probe.width = 1;
+    probe.height = 1;
+    const pctx = probe.getContext("2d");
+    if (!pctx) return null;
+    pctx.drawImage(source, srcX, srcY, 1, 1, 0, 0, 1, 1);
+    const px = pctx.getImageData(0, 0, 1, 1).data;
+    return toHex(px[0], px[1], px[2]);
+  }
+
+  function renderSizeToggles() {
+    const host = $("sizeToggles");
+    host.innerHTML = "";
+    const extras = selected.filter(function (s) { return PRESET_SIZES.indexOf(s) < 0; });
+    const sizes = PRESET_SIZES.concat(extras);
+    sizes.forEach(function (s) {
+      const on = selected.indexOf(s) >= 0;
+      const lab = document.createElement("label");
+      lab.className = "chip" + (on ? " on" : "");
+      const inp = document.createElement("input");
+      inp.type = "checkbox";
+      inp.checked = on;
+      inp.addEventListener("change", function () { toggleSize(s, inp.checked); });
+      lab.appendChild(inp);
+      lab.appendChild(document.createTextNode(" " + s + "×" + s));
+      host.appendChild(lab);
+    });
+    const sizeLabel = selected.length ? selected.slice().sort(function (a, b) { return a - b; }).join("、") : "尚未选择";
+    $("sizeDesc").textContent = "可多选，会写入同一个 .ico 文件。常见尺寸为 16、24、32、48、64、128、256，也可添加 1 到 256 的自定义正整数。当前将生成：" + sizeLabel + "。";
+  }
+
+  function appendThumb(host, frame, zoom) {
+    const display = frame.size * zoom;
+    const thumb = document.createElement("div");
+    thumb.className = "thumb";
+    const cap = document.createElement("div");
+    cap.className = "cap";
+    cap.textContent = zoom > 1 ? (frame.size + "×" + frame.size + " · 放大 " + zoom + " 倍") : (frame.size + "×" + frame.size);
+    const box = document.createElement("div");
+    box.className = "box checker-light";
+    box.style.width = display + "px";
+    box.style.maxWidth = "100%";
+    box.style.aspectRatio = "1 / 1";
+    const canvas = document.createElement("canvas");
+    canvas.width = frame.size;
+    canvas.height = frame.size;
+    canvas.style.imageRendering = zoom > 1 ? "pixelated" : "auto";
+    const ctx = canvas.getContext("2d");
+    if (ctx) {
+      ctx.clearRect(0, 0, frame.size, frame.size);
+      ctx.putImageData(frame.imageData, 0, 0);
+    }
+    box.appendChild(canvas);
+    thumb.appendChild(cap);
+    thumb.appendChild(box);
+    host.appendChild(thumb);
+  }
+
+  function updatePickingUi() {
+    $("eyedrop").textContent = picking ? "取消取色" : "吸管取色";
+    $("pickHint").hidden = !picking;
+    sourceFrame.classList.toggle("picking", picking);
+    $("filterChip").classList.toggle("on", filterOn);
+    updateSourceHint();
+  }
+
+  function syncColorInputs() {
+    const parsed = parseHex(filterColor);
+    const value = parsed ? toHex(parsed.r, parsed.g, parsed.b) : "#ffffff";
+    $("colorPick").value = value;
+    $("colorHex").value = filterColor;
+  }
+
+  function refresh() {
+    const frames = buildFrames();
+    icoResult = buildIcoResult(frames);
+    const empty = $("previewEmpty");
+    const actual = $("previewActual");
+    const zoom = $("previewZoom");
+    actual.innerHTML = "";
+    zoom.innerHTML = "";
+    if (frames.length === 0) {
+      empty.hidden = false;
+    } else {
+      empty.hidden = true;
+      frames.forEach(function (f) { appendThumb(actual, f, 1); });
+      frames.filter(function (f) { return f.size <= 64; }).forEach(function (f) { appendThumb(zoom, f, 4); });
+    }
+
+    const sizeLabel = selected.length ? selected.slice().sort(function (a, b) { return a - b; }).join("、") : "尚未选择";
+    const has256 = selected.indexOf(256) >= 0;
+    const hasSmall = selected.some(function (s) { return s !== 256; });
+    let encodeLabel = "尚未选择尺寸";
+    if (has256 && hasSmall) encodeLabel = "256×256 嵌 PNG，较小尺寸为 32 位 BMP/DIB 加 AND 掩码";
+    else if (has256) encodeLabel = "256×256 嵌 PNG";
+    else if (hasSmall) encodeLabel = "32 位 BMP/DIB 加 AND 掩码";
+
+    const props = [
+      ["文件名", safeName(fileName) + ".ico"],
+      ["包含尺寸", sizeLabel],
+      ["编码方式", encodeLabel],
+      ["文件大小", icoResult ? (icoResult.bytes.length + " 字节") : "-"],
+      ["自检", icoResult ? (icoResult.allOk ? "全部通过" : "未通过") : "待生成"],
+    ];
+    const dl = $("props");
+    dl.innerHTML = "";
+    props.forEach(function (pair) {
+      const dt = document.createElement("dt");
+      dt.textContent = pair[0];
+      const dd = document.createElement("dd");
+      dd.textContent = pair[1];
+      dl.appendChild(dt);
+      dl.appendChild(dd);
+    });
+
+    const checks = $("checks");
+    checks.innerHTML = "";
+    if (icoResult) {
+      checks.hidden = false;
+      icoResult.checks.forEach(function (c) {
+        const li = document.createElement("li");
+        const title = document.createElement("div");
+        title.className = "title";
+        title.textContent = c.title;
+        const badge = document.createElement("span");
+        badge.className = "badge " + (c.ok ? "ok" : "bad");
+        badge.textContent = c.ok ? "通过" : "未通过";
+        const detail = document.createElement("div");
+        detail.className = "detail";
+        detail.textContent = c.detail;
+        li.appendChild(title);
+        li.appendChild(badge);
+        li.appendChild(detail);
+        checks.appendChild(li);
+      });
+    } else {
+      checks.hidden = true;
+    }
+
+    const can = !!(icoResult && icoResult.allOk);
+    $("download").disabled = !can;
+    $("downloadBar").disabled = !can;
+    $("barStatus").textContent = can ? ("可下载 " + safeName(fileName) + ".ico") : (icoResult ? "自检未通过" : "等待生成");
+    $("filterChip").classList.toggle("on", filterOn);
+  }
+
+  $("pickFile").addEventListener("click", function () { fileInput.click(); });
+  fileInput.addEventListener("change", function (e) {
+    const file = e.target.files && e.target.files[0];
+    if (file) loadFromFile(file);
+    e.target.value = "";
+  });
+  $("useSample").addEventListener("click", loadSample);
+
+  ["dragenter", "dragover"].forEach(function (type) {
+    drop.addEventListener(type, function (e) {
+      e.preventDefault();
+      if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
+      drop.classList.add("over");
+    });
+  });
+  drop.addEventListener("dragleave", function (e) {
+    e.preventDefault();
+    drop.classList.remove("over");
+  });
+  drop.addEventListener("drop", function (e) {
+    e.preventDefault();
+    drop.classList.remove("over");
+    const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (file) loadFromFile(file);
+  });
+
+  $("addSize").addEventListener("click", addCustomSize);
+  $("customSize").addEventListener("keydown", function (e) {
+    if (e.key === "Enter") { e.preventDefault(); addCustomSize(); }
+  });
+  $("resetSizes").addEventListener("click", function () {
+    selected = DEFAULT_SIZES.slice();
+    renderSizeToggles();
+    refresh();
+  });
+  document.querySelectorAll('input[name="fit"]').forEach(function (inp) {
+    inp.addEventListener("change", function () {
+      if (inp.checked) { fit = inp.value; refresh(); }
+    });
+  });
+
+  $("filterOn").addEventListener("change", function () {
+    filterOn = $("filterOn").checked;
+    if (!filterOn) picking = false;
+    updatePickingUi();
+    refresh();
+  });
+  $("colorPick").addEventListener("input", function () {
+    filterColor = $("colorPick").value;
+    syncColorInputs();
+    refresh();
+  });
+  $("colorHex").addEventListener("input", function () {
+    filterColor = $("colorHex").value;
+    const parsed = parseHex(filterColor);
+    if (parsed) $("colorPick").value = toHex(parsed.r, parsed.g, parsed.b);
+    refresh();
+  });
+  $("tolerance").addEventListener("input", function () {
+    tolerance = $("tolerance").value;
+    refresh();
+  });
+  $("eyedrop").addEventListener("click", function () {
+    picking = !picking;
+    updatePickingUi();
+  });
+
+  sourceCanvas.addEventListener("click", function (e) {
+    if (!picking) return;
+    const hex = readPixel(e);
+    if (!hex) return;
+    filterColor = hex;
+    filterOn = true;
+    picking = false;
+    $("filterOn").checked = true;
+    syncColorInputs();
+    updatePickingUi();
+    refresh();
+  });
+  sourceCanvas.addEventListener("mousemove", function (e) {
+    hoverHex = readPixel(e) || "";
+    updateSourceHint();
+  });
+  sourceCanvas.addEventListener("mouseleave", function () {
+    hoverHex = "";
+    updateSourceHint();
+  });
+
+  $("download").addEventListener("click", downloadIco);
+  $("downloadBar").addEventListener("click", downloadIco);
+
+  renderSizeToggles();
+  syncColorInputs();
+  loadSample();
+})();
+</script>
+</body>
+</html>

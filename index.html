@@ -190,7 +190,7 @@
       <h2>怎么用</h2>
       <ol class="steps">
         <li><strong>上传图片。</strong>选择或拖入 JPG、PNG，浏览器支持时也可用 WEBP。页面已载入一张示例图，可先试一遍再换成你的图。</li>
-        <li><strong>选择尺寸。</strong>勾选要写入同一个 .ico 的边长。默认已选 16、32、48、256，也可添加 1 到 256 的自定义整数尺寸。</li>
+        <li><strong>选择尺寸。</strong>勾选要写入同一个 .ico 的边长。默认已选 16、32、48、256，也可添加 1 到 1024 的自定义整数尺寸。</li>
         <li><strong>过滤背景色。</strong>需要去背景时打开开关，用吸管在原图上取色，或用颜色选择器指定，再设容差。匹配像素会变成完全透明，原有透明区域会保留。</li>
         <li><strong>预览并下载。</strong>在棋盘格上确认各尺寸和透明区域，自检通过后下载 .ico 文件，拿到即可使用。</li>
       </ol>
@@ -214,11 +214,12 @@
 
     <section>
       <h2>图标尺寸</h2>
-      <p id="sizeDesc">可多选，会写入同一个 .ico 文件。常见尺寸为 16、24、32、48、64、128、256，也可添加 1 到 256 的自定义正整数。</p>
+      <p id="sizeDesc">可多选，会写入同一个 .ico 文件。常见尺寸为 16、24、32、48、64、128、256，也可添加 1 到 1024 的自定义正整数。</p>
+      <p>256×256 以上尺寸会嵌入 PNG；由于 ICO 目录字段最大只能表示 256×256，超出尺寸的目录字段会记录为 256×256，兼容性取决于读取软件。</p>
       <div id="sizeToggles" class="toggles"></div>
       <div class="row">
         <label class="field grow">自定义边长
-          <input id="customSize" type="number" min="1" max="256" placeholder="1-256">
+          <input id="customSize" type="number" min="1" max="1024" placeholder="1-1024">
         </label>
         <button type="button" id="addSize">添加尺寸</button>
         <button type="button" id="resetSizes">恢复常用组合</button>
@@ -233,22 +234,12 @@
 
     <section>
       <h2>过滤背景色</h2>
-      <p>打开后，与指定颜色在容差内的像素会变成完全透明。容差为 0 到 255，按红绿蓝各通道差值的最大值比较：0 只去掉完全一致的颜色，数值越大，越多相近色会被去掉。PNG 原有的透明通道会保留，再进行过滤。示例图的背景是白色，可先用默认设置试验。</p>
+      <p>打开后，与任一指定颜色在对应容差内的像素会变成完全透明。可添加多个背景色控制；容差为 0 到 255，按红绿蓝各通道差值的最大值比较。PNG 原有的透明通道会保留，再进行过滤。示例图的背景是白色，可先用默认设置试验。</p>
       <div class="toggles">
         <label class="chip" id="filterChip"><input type="checkbox" id="filterOn"> 过滤背景色</label>
       </div>
-      <div class="row">
-        <label class="field">颜色
-          <input id="colorPick" type="color" value="#ffffff" aria-label="背景色">
-        </label>
-        <label class="field grow">色值
-          <input id="colorHex" type="text" value="#ffffff" placeholder="#ffffff">
-        </label>
-        <label class="field grow">容差 0-255
-          <input id="tolerance" type="number" min="0" max="255" value="32" placeholder="32">
-        </label>
-        <button type="button" id="eyedrop">吸管取色</button>
-      </div>
+      <div id="filterControls"></div>
+      <button type="button" id="addFilter">添加背景色</button>
       <p id="pickHint" class="hint" hidden>请在上方原图预览上点击要去掉的颜色。取色后会自动打开过滤。</p>
     </section>
 
@@ -262,7 +253,7 @@
 
     <section>
       <h2>下载 ICO</h2>
-      <p>下载前会按 ICO 规范做格式自检：文件头、尺寸目录、PNG 或 DIB 编码、AND 掩码长度，以及各块数据不重叠。自检通过后才可下载。</p>
+      <p>下载前会检查 ICO 文件结构、PNG 或 DIB 编码、AND 掩码长度，以及各块数据不重叠。256×256 以上尺寸以 PNG 嵌入，目录字段记录为 256×256；兼容性取决于读取软件。</p>
       <dl class="props" id="props"></dl>
       <ul class="checks" id="checks" hidden></ul>
       <button type="button" class="primary" id="download" disabled>下载 ICO</button>
@@ -281,6 +272,7 @@
 
   const PRESET_SIZES = [16, 24, 32, 48, 64, 128, 256];
   const DEFAULT_SIZES = [16, 32, 48, 256];
+  const MAX_ICON_SIZE = 1024;
   const PNG_SIG = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 
   let source = null;
@@ -289,9 +281,9 @@
   let selected = DEFAULT_SIZES.slice();
   let fit = "contain";
   let filterOn = false;
-  let filterColor = "#ffffff";
-  let tolerance = "32";
+  let filters = [{ color: "#ffffff", tolerance: "32" }];
   let picking = false;
+  let activeFilterIndex = 0;
   let objectUrl = null;
   let hoverHex = "";
   let icoResult = null;
@@ -571,7 +563,8 @@
       const offset = dv.getUint32(o + 12, true);
       const exp = expectedSizes[i];
       const label = w + "×" + h;
-      if (w !== exp || h !== exp || w < 1 || w > 256 || reservedEntry !== 0) {
+      const directoryMatches = w === exp && h === exp || exp > 256 && w === 256 && h === 256;
+      if (!directoryMatches || reservedEntry !== 0) {
         items.push({ title: label + " 目录", ok: false, detail: "记录为 " + w + "×" + h + "，期望 " + exp + "×" + exp });
         continue;
       }
@@ -580,18 +573,20 @@
         continue;
       }
       ranges.push({ start: offset, end: offset + nbytes });
-      if (w === 256) {
+      if (exp >= 256) {
         const png = isPngAt(bytes, offset);
         let ihdrOk = false;
         if (png && offset + 24 <= bytes.length) {
           const iw = dv.getUint32(offset + 16, false);
           const ih = dv.getUint32(offset + 20, false);
-          ihdrOk = iw === 256 && ih === 256;
+          ihdrOk = iw === exp && ih === exp;
         }
         items.push({
-          title: "256×256 编码",
+          title: exp + "×" + exp + " 编码",
           ok: png && ihdrOk,
-          detail: png && ihdrOk ? "已嵌入完整 PNG，IHDR 为 256×256" : "应为嵌入 PNG，但签名或尺寸不符",
+          detail: png && ihdrOk
+            ? (exp > 256 ? "目录字段为 256×256，嵌入 PNG IHDR 为 " + exp + "×" + exp : "已嵌入 PNG，IHDR 为 " + exp + "×" + exp)
+            : "应为嵌入 PNG，但签名或尺寸不符",
         });
       } else {
         const biSize = dv.getUint32(offset, true);
@@ -698,9 +693,9 @@
   }
 
   function addCustomSize() {
-    const n = parseInt($("customSize").value, 10);
-    if (!Number.isInteger(n) || n < 1 || n > 256) {
-      setLoadError("自定义尺寸须是 1 到 256 的整数。");
+    const n = Number($("customSize").value);
+    if (!Number.isInteger(n) || n < 1 || n > MAX_ICON_SIZE) {
+      setLoadError("自定义尺寸须是 1 到 " + MAX_ICON_SIZE + " 的整数。");
       return;
     }
     setLoadError("");
@@ -710,12 +705,16 @@
 
   function buildFrames() {
     if (!source || selected.length === 0) return [];
-    const color = parseHex(filterColor) || { r: 255, g: 255, b: 255 };
-    const parsedTol = parseInt(tolerance, 10);
-    const tol = clamp(Number.isFinite(parsedTol) ? parsedTol : 0, 0, 255);
     return selected.slice().sort(function (a, b) { return a - b; }).map(function (size) {
       let data = sourceToSquare(source, size, fit);
-      if (filterOn) data = applyFilter(data, color, tol);
+      if (filterOn) {
+        filters.forEach(function (filter) {
+          const color = parseHex(filter.color) || { r: 255, g: 255, b: 255 };
+          const parsedTol = parseInt(filter.tolerance, 10);
+          const tol = clamp(Number.isFinite(parsedTol) ? parsedTol : 0, 0, 255);
+          data = applyFilter(data, color, tol);
+        });
+      }
       return { size: size, imageData: data };
     });
   }
@@ -725,10 +724,10 @@
     const images = [];
     for (let i = 0; i < frames.length; i++) {
       const f = frames[i];
-      if (f.size === 256) {
+      if (f.size >= 256) {
         const png = imageDataToPng(f.imageData);
         if (!png) return null;
-        images.push({ width: 256, height: 256, data: png });
+        images.push({ width: f.size, height: f.size, data: png });
       } else {
         images.push({ width: f.size, height: f.size, data: encodeDib32(f.size, f.size, f.imageData.data) });
       }
@@ -823,7 +822,69 @@
       host.appendChild(lab);
     });
     const sizeLabel = selected.length ? selected.slice().sort(function (a, b) { return a - b; }).join("、") : "尚未选择";
-    $("sizeDesc").textContent = "可多选，会写入同一个 .ico 文件。常见尺寸为 16、24、32、48、64、128、256，也可添加 1 到 256 的自定义正整数。当前将生成：" + sizeLabel + "。";
+    $("sizeDesc").textContent = "可多选，会写入同一个 .ico 文件。常见尺寸为 16、24、32、48、64、128、256，也可添加 1 到 " + MAX_ICON_SIZE + " 的自定义正整数。当前将生成：" + sizeLabel + "。";
+  }
+
+  function renderFilterControls() {
+    const host = $("filterControls");
+    host.innerHTML = "";
+    filters.forEach(function (filter, index) {
+      const row = document.createElement("div");
+      row.className = "row";
+      row.style.marginBottom = "12px";
+      row.dataset.filterIndex = index;
+
+      const colorLabel = document.createElement("label");
+      colorLabel.className = "field";
+      colorLabel.appendChild(document.createTextNode("颜色"));
+      const color = document.createElement("input");
+      color.type = "color";
+      const parsed = parseHex(filter.color);
+      color.value = parsed ? toHex(parsed.r, parsed.g, parsed.b) : "#ffffff";
+      color.setAttribute("aria-label", "背景色 " + (index + 1));
+      color.dataset.filterField = "color";
+      colorLabel.appendChild(color);
+
+      const hexLabel = document.createElement("label");
+      hexLabel.className = "field grow";
+      hexLabel.appendChild(document.createTextNode("色值"));
+      const hex = document.createElement("input");
+      hex.type = "text";
+      hex.value = filter.color;
+      hex.placeholder = "#ffffff";
+      hex.dataset.filterField = "hex";
+      hexLabel.appendChild(hex);
+
+      const toleranceLabel = document.createElement("label");
+      toleranceLabel.className = "field grow";
+      toleranceLabel.appendChild(document.createTextNode("容差 0-255"));
+      const toleranceInput = document.createElement("input");
+      toleranceInput.type = "number";
+      toleranceInput.min = "0";
+      toleranceInput.max = "255";
+      toleranceInput.value = filter.tolerance;
+      toleranceInput.placeholder = "32";
+      toleranceInput.dataset.filterField = "tolerance";
+      toleranceLabel.appendChild(toleranceInput);
+
+      const eyedrop = document.createElement("button");
+      eyedrop.type = "button";
+      eyedrop.className = "filter-eyedrop";
+      eyedrop.textContent = picking && activeFilterIndex === index ? "取消取色" : "吸管取色";
+
+      row.appendChild(colorLabel);
+      row.appendChild(hexLabel);
+      row.appendChild(toleranceLabel);
+      row.appendChild(eyedrop);
+      if (filters.length > 1) {
+        const remove = document.createElement("button");
+        remove.type = "button";
+        remove.className = "filter-remove";
+        remove.textContent = "删除";
+        row.appendChild(remove);
+      }
+      host.appendChild(row);
+    });
   }
 
   function appendThumb(host, frame, zoom) {
@@ -854,18 +915,22 @@
   }
 
   function updatePickingUi() {
-    $("eyedrop").textContent = picking ? "取消取色" : "吸管取色";
     $("pickHint").hidden = !picking;
     sourceFrame.classList.toggle("picking", picking);
     $("filterChip").classList.toggle("on", filterOn);
+    $("filterControls").querySelectorAll(".filter-eyedrop").forEach(function (button, index) {
+      button.textContent = picking && activeFilterIndex === index ? "取消取色" : "吸管取色";
+    });
     updateSourceHint();
   }
 
-  function syncColorInputs() {
-    const parsed = parseHex(filterColor);
-    const value = parsed ? toHex(parsed.r, parsed.g, parsed.b) : "#ffffff";
-    $("colorPick").value = value;
-    $("colorHex").value = filterColor;
+  function syncFilterInputs(index) {
+    const row = $("filterControls").children[index];
+    if (!row) return;
+    const filter = filters[index];
+    const parsed = parseHex(filter.color);
+    row.querySelector('[data-filter-field="color"]').value = parsed ? toHex(parsed.r, parsed.g, parsed.b) : "#ffffff";
+    row.querySelector('[data-filter-field="hex"]').value = filter.color;
   }
 
   function refresh() {
@@ -885,11 +950,11 @@
     }
 
     const sizeLabel = selected.length ? selected.slice().sort(function (a, b) { return a - b; }).join("、") : "尚未选择";
-    const has256 = selected.indexOf(256) >= 0;
-    const hasSmall = selected.some(function (s) { return s !== 256; });
+    const hasPng = selected.some(function (s) { return s >= 256; });
+    const hasSmall = selected.some(function (s) { return s < 256; });
     let encodeLabel = "尚未选择尺寸";
-    if (has256 && hasSmall) encodeLabel = "256×256 嵌 PNG，较小尺寸为 32 位 BMP/DIB 加 AND 掩码";
-    else if (has256) encodeLabel = "256×256 嵌 PNG";
+    if (hasPng && hasSmall) encodeLabel = "256×256 及以上嵌 PNG，较小尺寸为 32 位 BMP/DIB 加 AND 掩码";
+    else if (hasPng) encodeLabel = "256×256 及以上嵌 PNG";
     else if (hasSmall) encodeLabel = "32 位 BMP/DIB 加 AND 掩码";
 
     const props = [
@@ -988,35 +1053,61 @@
     updatePickingUi();
     refresh();
   });
-  $("colorPick").addEventListener("input", function () {
-    filterColor = $("colorPick").value;
-    syncColorInputs();
-    refresh();
-  });
-  $("colorHex").addEventListener("input", function () {
-    filterColor = $("colorHex").value;
-    const parsed = parseHex(filterColor);
-    if (parsed) $("colorPick").value = toHex(parsed.r, parsed.g, parsed.b);
-    refresh();
-  });
-  $("tolerance").addEventListener("input", function () {
-    tolerance = $("tolerance").value;
-    refresh();
-  });
-  $("eyedrop").addEventListener("click", function () {
-    picking = !picking;
+  $("addFilter").addEventListener("click", function () {
+    filters.push({ color: "#ffffff", tolerance: "32" });
+    renderFilterControls();
     updatePickingUi();
+    refresh();
+  });
+  $("filterControls").addEventListener("input", function (e) {
+    const field = e.target.dataset.filterField;
+    const row = e.target.closest("[data-filter-index]");
+    if (!field || !row) return;
+    const index = Number(row.dataset.filterIndex);
+    if (field === "color") {
+      filters[index].color = e.target.value;
+      row.querySelector('[data-filter-field="hex"]').value = e.target.value;
+    } else if (field === "hex") {
+      filters[index].color = e.target.value;
+      const parsed = parseHex(e.target.value);
+      if (parsed) row.querySelector('[data-filter-field="color"]').value = toHex(parsed.r, parsed.g, parsed.b);
+    } else if (field === "tolerance") {
+      filters[index].tolerance = e.target.value;
+    }
+    refresh();
+  });
+  $("filterControls").addEventListener("click", function (e) {
+    const row = e.target.closest("[data-filter-index]");
+    if (!row) return;
+    const index = Number(row.dataset.filterIndex);
+    if (e.target.classList.contains("filter-eyedrop")) {
+      if (picking && activeFilterIndex === index) {
+        picking = false;
+      } else {
+        activeFilterIndex = index;
+        picking = true;
+      }
+      updatePickingUi();
+    } else if (e.target.classList.contains("filter-remove") && filters.length > 1) {
+      filters.splice(index, 1);
+      if (activeFilterIndex > index) activeFilterIndex--;
+      if (activeFilterIndex >= filters.length) activeFilterIndex = filters.length - 1;
+      picking = false;
+      renderFilterControls();
+      updatePickingUi();
+      refresh();
+    }
   });
 
   sourceCanvas.addEventListener("click", function (e) {
     if (!picking) return;
     const hex = readPixel(e);
     if (!hex) return;
-    filterColor = hex;
+    filters[activeFilterIndex].color = hex;
     filterOn = true;
     picking = false;
     $("filterOn").checked = true;
-    syncColorInputs();
+    syncFilterInputs(activeFilterIndex);
     updatePickingUi();
     refresh();
   });
@@ -1033,7 +1124,8 @@
   $("downloadBar").addEventListener("click", downloadIco);
 
   renderSizeToggles();
-  syncColorInputs();
+  renderFilterControls();
+  updatePickingUi();
   loadSample();
 })();
 </script>
